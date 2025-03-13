@@ -4,7 +4,6 @@
 感受一下推送
 
 """
-
 import sys
 import cv2
 import numpy as np
@@ -17,7 +16,206 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QVBoxLa
                              QButtonGroup, QScrollArea, QSlider, QSpinBox, QDialog,
                              QGridLayout, QCheckBox, QComboBox)
 
+# 定义护眼模式颜色
+eye_comfort_bg = "#FFF4E6"
+eye_comfort_fg = "#6B4C3B"
 
+# 定义浅色和深色模式颜色
+light_bg = "#F0F0F0"
+dark_bg = "#2E2E2E"
+light_fg = "#333333"
+dark_fg = "#FFFFFF"
+
+# 定义样式表
+DAY_STYLE = """
+    QWidget {
+        background-color: #ffffff;
+        color: #000000;
+    }
+    QListWidget {
+        background-color: #ffffff;
+        color: #000000;
+    }
+"""
+
+NIGHT_STYLE = """
+    QWidget {
+        background-color: #2e2e2e;
+        color: #ffffff;
+    }
+    QListWidget {
+        background-color: #2e2e2e;
+        color: #ffffff;
+    }
+    QScrollArea {
+        background-color: #2e2e2e;
+    }
+"""
+
+EYE_COMFORT_STYLE = f"""
+    QWidget {{
+        background-color: {eye_comfort_bg};
+        color: #000000;
+    }}
+    QListWidget {{
+        background-color: {eye_comfort_bg};
+        color: #000000;
+    }}
+    QScrollArea {{
+        background-color: {eye_comfort_bg};
+    }}
+"""
+
+LIGHT_STYLE = f"""
+    QWidget {{
+        background-color: {light_bg};
+        color: {light_fg};
+    }}
+    QListWidget {{
+        background-color: {light_bg};
+        color: {light_fg};
+    }}
+    QScrollArea {{
+        background-color: {light_bg};
+    }}
+"""
+
+DARK_STYLE = f"""
+    QWidget {{
+        background-color: {dark_bg};
+        color: {dark_fg};
+    }}
+    QListWidget {{
+        background-color: {dark_bg};
+        color: {dark_fg};
+    }}
+    QScrollArea {{
+        background-color: {dark_bg};
+    }}
+"""
+
+BLUE_STYLE = """
+    QWidget {
+        background-color: #003366;
+        color: #FFFFFF;
+    }
+    QListWidget {
+        background-color: #003366;
+        color: #FFFFFF;
+    }
+    QScrollArea {
+        background-color: #003366;
+    }
+"""
+
+GRAY_STYLE = """
+    QWidget {
+        background-color: #999999;
+        color: #000000;
+    }
+    QListWidget {
+        background-color: #999999;
+        color: #000000;
+    }
+    QScrollArea {
+        background-color: #999999;
+    }
+"""
+
+WARM_YELLOW_STYLE = """
+    QWidget {
+        background-color: #FFF9C4;
+        color: #000000;
+    }
+    QListWidget {
+        background-color: #FFF9C4;
+        color: #000000;
+    }
+    QScrollArea {
+        background-color: #FFF9C4;
+    }
+"""
+
+Green_STYLE = """
+    QWidget {
+        background-color: #C7EDCC;
+        color: #000000;
+    }
+    QListWidget {
+        background-color: #C7EDCC;
+        color: #000000;
+    }
+    QScrollArea {
+        background-color: #C7EDCC;
+    }
+"""
+xrh_STYLE = """
+    QWidget {
+        background-color: #FAF9DE;
+        color: #000000;
+    }
+    QListWidget {
+        background-color: #FAF9DE;
+        color: #000000;
+    }
+    QScrollArea {
+        background-color: #FAF9DE;
+    }
+"""
+
+qyh_STYLE = """
+    QWidget {
+        background-color: #FFF2E2;
+        color: #000000;
+    }
+    QListWidget {
+        background-color: #FFF2E2;
+        color: #000000;
+    }
+    QScrollArea {
+        background-color: #FFF2E2;
+    }
+"""
+htl_STYLE = """
+    QWidget {
+        background-color: #DCE2F1;
+        color: #000000;
+    }
+    QListWidget {
+        background-color: #DCE2F1;
+        color: #000000;
+    }
+    QScrollArea {
+        background-color: #DCE2F1;
+    }
+"""
+
+gjz_STYLE = """
+    QWidget {
+        background-color: #E9EBFE;
+        color: #000000;
+    }
+    QListWidget {
+        background-color: #E9EBFE;
+        color: #000000;
+    }
+    QScrollArea {
+        background-color: #E9EBFE;
+    }
+"""
+qcl_STYLE = """
+    QWidget {
+        background-color: #E3EDCD;
+        color: #000000;
+    }
+    QListWidget {
+        background-color: #E3EDCD;
+        color: #000000;
+    }
+    QScrollArea {
+        background-color: #E3EDCD;
+    }
+"""
 class RotationDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -44,19 +242,73 @@ class ImageProcessingApp(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
-        self.current_image_path = None  # 当前加载的原图路径
-        self.processed_image = None  # 存储当前处理后的图像（numpy 数组）
-        self.history = []  # 用于撤销的栈
-        self.redo_stack = []  # 用于反撤销的栈
+        self.current_mode = "day"
+        self.current_image_path = None
+        self.processed_image = None
+        self.history = []
+        self.redo_stack = []
 
     def initUI(self):
-        self.setWindowTitle('多功能图片处理集成工具')
+        self.setWindowTitle('多功能图片处理集成工具V1.0')
         self.setGeometry(100, 100, 1200, 800)
+
+        # 新增模式切换按钮
+        self.mode_btn = QPushButton('切换到夜间模式')
+        self.mode_btn.clicked.connect(self.toggle_mode)
+
+        self.eye_comfort_btn = QPushButton('切换到护眼模式')
+        self.eye_comfort_btn.clicked.connect(self.toggle_eye_comfort_mode)
+
+        self.light_mode_btn = QPushButton('切换到浅色模式')
+        self.light_mode_btn.clicked.connect(self.toggle_light_mode)
+
+        self.dark_mode_btn = QPushButton('切换到深色模式')
+        self.dark_mode_btn.clicked.connect(self.toggle_dark_mode)
+
+        self.blue_mode_btn = QPushButton('切换到深蓝色模式')
+        self.blue_mode_btn.clicked.connect(self.toggle_blue_mode)
+
+        self.gray_mode_btn = QPushButton('切换到灰色模式')
+        self.gray_mode_btn.clicked.connect(self.toggle_gray_mode)
+
+        self.warm_yellow_mode_btn = QPushButton('切换到暖黄色模式')
+        self.warm_yellow_mode_btn.clicked.connect(self.toggle_warm_yellow_mode)
+
+        self.Green_mode_btn = QPushButton('切换到绿豆沙模式')
+        self.Green_mode_btn.clicked.connect(self.toggle_Green_mode)
+
+        self.xrh_mode_btn = QPushButton('切换到杏仁黄模式')
+        self.xrh_mode_btn.clicked.connect(self.toggle_xrh_mode)
+
+        self.qyh_mode_btn = QPushButton('切换到秋叶褐模式')
+        self.qyh_mode_btn.clicked.connect(self.toggle_qyh_mode)
+
+        self.htl_mode_btn = QPushButton('切换到海天蓝模式')
+        self.htl_mode_btn.clicked.connect(self.toggle_htl_mode)
+
+        self.gjz_mode_btn = QPushButton('切换到葛巾紫模式')
+        self.gjz_mode_btn.clicked.connect(self.toggle_gjz_mode)
+
+        self.qcl_mode_btn = QPushButton('切换到青草绿模式')
+        self.qcl_mode_btn.clicked.connect(self.toggle_qcl_mode)
 
         main_layout = QHBoxLayout()
 
         # 左侧面板
         left_layout = QVBoxLayout()
+        left_layout.addWidget(self.mode_btn)
+        left_layout.addWidget(self.eye_comfort_btn)
+        left_layout.addWidget(self.light_mode_btn)
+        left_layout.addWidget(self.dark_mode_btn)
+        left_layout.addWidget(self.blue_mode_btn)
+        left_layout.addWidget(self.gray_mode_btn)
+        left_layout.addWidget(self.warm_yellow_mode_btn)
+        left_layout.addWidget(self.Green_mode_btn)
+        left_layout.addWidget(self.xrh_mode_btn)
+        left_layout.addWidget(self.qyh_mode_btn)
+        left_layout.addWidget(self.htl_mode_btn)
+        left_layout.addWidget(self.gjz_mode_btn)
+        left_layout.addWidget(self.qcl_mode_btn)
         self.load_btn = QPushButton('请选择图片导入')
         self.load_btn.clicked.connect(self.load_image)
         self.load_folder_btn = QPushButton('请选择文件夹路径导入')
@@ -67,6 +319,18 @@ class ImageProcessingApp(QWidget):
         left_layout.addWidget(self.load_btn)
         left_layout.addWidget(self.load_folder_btn)
         left_layout.addWidget(self.file_list)
+
+        # 添加帮助和关于按钮
+        self.help_btn = QPushButton('帮助')
+        self.help_btn.clicked.connect(self.show_help)
+        left_layout.addWidget(self.help_btn)
+
+        self.about_btn = QPushButton('关于')
+        self.about_btn.clicked.connect(self.show_about)
+        left_layout.addWidget(self.about_btn)
+
+        # 设置初始样式
+        self.setStyleSheet(DAY_STYLE)
 
         # 中间面板
         mid_layout = QVBoxLayout()
@@ -421,6 +685,246 @@ class ImageProcessingApp(QWidget):
         self.processed_image = flipped_image  # 更新当前处理图像
         self.save_and_display(self.processed_image)
 
+    def toggle_mode(self):
+        """切换白天/夜间模式"""
+        if self.current_mode == "day":
+            self.setStyleSheet(NIGHT_STYLE)
+            self.current_mode = "night"
+            self.mode_btn.setText('切换到白天模式')
+        else:
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.mode_btn.setText('切换到夜间模式')
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_eye_comfort_mode(self):
+        """切换护眼模式"""
+        if self.current_mode != "eye_comfort":
+            # 切换为护眼模式
+            self.setStyleSheet(EYE_COMFORT_STYLE)
+            self.current_mode = "eye_comfort"
+            self.eye_comfort_btn.setText("切换到正常模式")
+        else:
+            # 切换为正常模式
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.eye_comfort_btn.setText("切换到护眼模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_light_mode(self):
+        """切换浅色模式"""
+        if self.current_mode != "light":
+            # 切换为浅色模式
+            self.setStyleSheet(LIGHT_STYLE)
+            self.current_mode = "light"
+            self.light_mode_btn.setText("切换到其他模式")
+        else:
+            # 切换为默认模式
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.light_mode_btn.setText("切换到浅色模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_dark_mode(self):
+        """切换深色模式"""
+        if self.current_mode != "dark":
+            # 切换为深色模式
+            self.setStyleSheet(DARK_STYLE)
+            self.current_mode = "dark"
+            self.dark_mode_btn.setText("切换到其他模式")
+        else:
+            # 切换为默认模式
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.dark_mode_btn.setText("切换到深色模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_blue_mode(self):
+        """切换深蓝色模式"""
+        if self.current_mode != "blue":
+            # 切换为深蓝色模式
+            self.setStyleSheet(BLUE_STYLE)
+            self.current_mode = "blue"
+            self.blue_mode_btn.setText("切换到其他模式")
+        else:
+            # 切换为默认模式
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.blue_mode_btn.setText("切换到深蓝色模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_gray_mode(self):
+        """切换灰色模式"""
+        if self.current_mode != "gray":
+            # 切换为灰色模式
+            self.setStyleSheet(GRAY_STYLE)
+            self.current_mode = "gray"
+            self.gray_mode_btn.setText("切换到其他模式")
+        else:
+            # 切换为默认模式
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.gray_mode_btn.setText("切换到灰色模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_warm_yellow_mode(self):
+        """切换暖黄色模式"""
+        if self.current_mode != "warm_yellow":
+            # 切换为暖黄色模式
+            self.setStyleSheet(WARM_YELLOW_STYLE)
+            self.current_mode = "warm_yellow"
+            self.warm_yellow_mode_btn.setText("切换到其他模式")
+        else:
+            # 切换为默认模式
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.warm_yellow_mode_btn.setText("切换到暖黄色模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_Green_mode(self):
+        if self.current_mode != "Green":
+            self.setStyleSheet(Green_STYLE)
+            self.current_mode = "Green"
+            self.warm_yellow_mode_btn.setText("切换到其他模式")
+        else:
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.warm_yellow_mode_btn.setText("切换到绿豆沙模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_xrh_mode(self):
+        if self.current_mode != "xrh":
+            self.setStyleSheet(xrh_STYLE)
+            self.current_mode = "xrh"
+            self.warm_yellow_mode_btn.setText("切换到其他模式")
+        else:
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.warm_yellow_mode_btn.setText("切换到杏仁黄模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_qyh_mode(self):
+        if self.current_mode != "qyh":
+            self.setStyleSheet(qyh_STYLE)
+            self.current_mode = "qyh"
+            self.warm_yellow_mode_btn.setText("切换到其他模式")
+        else:
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.warm_yellow_mode_btn.setText("切换到秋叶褐模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_htl_mode(self):
+        if self.current_mode != "htl":
+            self.setStyleSheet(htl_STYLE)
+            self.current_mode = "htl"
+            self.warm_yellow_mode_btn.setText("切换到其他模式")
+        else:
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.warm_yellow_mode_btn.setText("切换到海天蓝模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_gjz_mode(self):
+        if self.current_mode != "gjz":
+            self.setStyleSheet(gjz_STYLE)
+            self.current_mode = "gjz"
+            self.warm_yellow_mode_btn.setText("切换到其他模式")
+        else:
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.warm_yellow_mode_btn.setText("切换到葛巾紫模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
+    def toggle_qcl_mode(self):
+        if self.current_mode != "qcl":
+            self.setStyleSheet(qcl_STYLE)
+            self.current_mode = "qcl"
+            self.warm_yellow_mode_btn.setText("切换到其他模式")
+        else:
+            self.setStyleSheet(DAY_STYLE)
+            self.current_mode = "day"
+            self.warm_yellow_mode_btn.setText("切换到青草绿模式")
+
+        # 更新所有子部件的样式
+        for widget in self.findChildren(QWidget):
+            widget.setStyleSheet(self.styleSheet())
+
+        # 更新图像显示区域的背景色
+        self.update_label_background()
+
     def save_and_display(self, processed_image):
         self.processed_image = processed_image
         # 转换OpenCV BGR图像为Qt可显示的RGB格式
@@ -428,16 +932,96 @@ class ImageProcessingApp(QWidget):
         bytes_per_line = 3 * width
         q_img = QImage(self.processed_image.data, width, height, bytes_per_line, QImage.Format_RGB888).rgbSwapped()
         pixmap = QPixmap.fromImage(q_img)
+
+        # 根据当前模式设置标签背景
+        if self.current_mode == "night":
+            bg_color = "#2e2e2e"
+        elif self.current_mode == "eye_comfort":
+            bg_color = eye_comfort_bg
+        elif self.current_mode == "light":
+            bg_color = light_bg
+        elif self.current_mode == "dark":
+            bg_color = dark_bg
+        elif self.current_mode == "blue":
+            bg_color = "#003366"
+        elif self.current_mode == "gray":
+            bg_color = "#999999"
+        elif self.current_mode == "warm_yellow":
+            bg_color = "#FFF9C4"
+        elif self.current_mode == "Green":
+            bg_color = "#C7EDCC"
+        elif self.current_mode == "xrh":
+            bg_color = "#FAF9DE"
+        elif self.current_mode == "qyh":
+            bg_color = "#FFF2E2"
+        elif self.current_mode == "htl":
+            bg_color = "#DCE2F1"
+        elif self.current_mode == "gjz":
+            bg_color = "#E9EBFE"
+        elif self.current_mode == "qcl":
+            bg_color = "#E3EDCD"
+        else:
+            bg_color = "#ffffff"
+
+        self.processed_label.setStyleSheet(f"background-color: {bg_color};")
+
         self.processed_label.setPixmap(pixmap)
         self.processed_label.resize(pixmap.size())
 
     def export_image(self):
         if self.processed_image is not None:
-            file_path, _ = QFileDialog.getSaveFileName(self, '保存处理后图像', '',
-                                                       'Images (*.png *.jpg *.jpeg *.bmp)')
+            # 扩展支持的文件格式
+            file_types = (
+                "PNG文件 (*.png);;"
+                "JPEG文件 (*.jpg *.jpeg);;"
+                "BMP文件 (*.bmp);;"
+                "GIF文件 (*.gif);;"
+                "TIFF文件 (*.tif *.tiff);;"
+                "所有文件 (*)"
+            )
+
+            file_path, selected_filter = QFileDialog.getSaveFileName(
+                self,
+                '保存图像',
+                '',
+                file_types
+            )
+
             if file_path:
-                # 直接保存处理后的图像数据（原始尺寸）
-                cv2.imwrite(file_path, self.processed_image)
+                try:
+                    # 转换OpenCV图像到PIL格式
+                    img_rgb = cv2.cvtColor(self.processed_image, cv2.COLOR_BGR2RGB)
+                    pil_image = Image.fromarray(img_rgb)
+
+                    # 根据选择的文件类型确定保存格式
+                    if selected_filter.startswith("JPEG"):
+                        if not file_path.lower().endswith(('.jpg', '.jpeg')):
+                            file_path += '.jpg'
+                        pil_image.save(file_path, "JPEG", quality=95)
+                    elif selected_filter.startswith("PNG"):
+                        if not file_path.lower().endswith('.png'):
+                            file_path += '.png'
+                        pil_image.save(file_path, "PNG")
+                    elif selected_filter.startswith("BMP"):
+                        if not file_path.lower().endswith('.bmp'):
+                            file_path += '.bmp'
+                        pil_image.save(file_path, "BMP")
+                    elif selected_filter.startswith("GIF"):
+                        if not file_path.lower().endswith('.gif'):
+                            file_path += '.gif'
+                        pil_image.convert("P").save(file_path, "GIF")  # GIF需要调色板模式
+                    elif selected_filter.startswith("TIFF"):
+                        if not file_path.lower().endswith(('.tif', '.tiff')):
+                            file_path += '.tif'
+                        pil_image.save(file_path, "TIFF")
+                    else:  # 默认保存为PNG
+                        if '.' not in os.path.basename(file_path):
+                            file_path += '.png'
+                        pil_image.save(file_path)
+
+                    print(f"图像已成功保存为 {file_path}")
+                except Exception as e:
+                    print(f"保存失败: {str(e)}")
 
     def get_image_statistics(self, image_path):
         image = cv2.imread(image_path)
@@ -603,7 +1187,7 @@ class ImageProcessingApp(QWidget):
         if self.redo_stack:
             # 弹出反撤销栈中的最后一个状态并应用
             self.history.append(self.processed_image.copy())  # 保存当前图像到撤销栈
-            self.processed_image = self.redo_stack.pop()  # 恢复到反撤销的状态
+            self.processed_image = self.redo_stack.pop() # 恢复到反撤销的状态
             self.save_and_display(self.processed_image)
 
     # 新增颜色替换方法
@@ -668,6 +1252,118 @@ class ImageProcessingApp(QWidget):
                 if r > 200 and g > 200 and b > 200:
                     pixels[i, j] = target_color
         return img
+
+    def update_label_background(self):
+        if self.current_mode == "night":
+            bg_color = "#2e2e2e"
+        elif self.current_mode == "eye_comfort":
+            bg_color = eye_comfort_bg
+        elif self.current_mode == "light":
+            bg_color = light_bg
+        elif self.current_mode == "dark":
+            bg_color = dark_bg
+        elif self.current_mode == "blue":
+            bg_color = "#003366"
+        elif self.current_mode == "gray":
+            bg_color = "#999999"
+        elif self.current_mode == "warm_yellow":
+            bg_color = "#FFF9C4"
+        elif self.current_mode == "Green":
+            bg_color = "#C7EDCC"
+        elif self.current_mode == "xrh":
+            bg_color = "#FAF9DE"
+        elif self.current_mode == "qyh":
+            bg_color = "#FFF2E2"
+        elif self.current_mode == "htl":
+            bg_color = "#DCE2F1"
+        elif self.current_mode == "gjz":
+            bg_color = "#E9EBFE"
+        elif self.current_mode == "qcl":
+            bg_color = "#E3EDCD"
+        else:
+            bg_color = "#ffffff"
+
+        self.original_label.setStyleSheet(f"background-color: {bg_color};")
+        self.processed_label.setStyleSheet(f"background-color: {bg_color};")
+
+    def show_help(self):
+        # 创建帮助对话框
+        help_dialog = QDialog(self)
+        help_dialog.setWindowTitle('帮助内容')
+        help_layout = QVBoxLayout()
+
+        # 添加帮助内容
+        help_content = """
+        图像导入:
+          点击“请选择图片导入”按钮，选择单张图片进行导入。
+          点击“请选择文件夹路径导入”按钮，选择一个文件夹，批量导入该文件夹下的所有支持格式的图片。
+
+        图像显示:
+          左侧为原始图像显示区域，显示导入的原始图像。
+          右侧为处理后图像显示区域，显示对原始图像进行各种处理后的结果。
+
+        图像处理功能:
+          旋转：点击“旋转”按钮，在弹出的对话框中设置旋转角度，点击“确定”对图像进行旋转操作。
+          去噪：点击“去噪”按钮，对图像进行降噪处理，减少图像中的噪声。
+          直方图均衡化：点击“直方图均衡化”按钮，对图像进行直方图均衡化处理，增强图像的对比度。
+          锐化：点击“锐化”按钮，对图像进行锐化处理，使图像边缘更加清晰。
+          模糊：在“模糊类型”下拉菜单中选择模糊类型，拖动“模糊半径”滑块设置模糊程度，对图像进行模糊处理。
+          边缘检测：在“边缘检测”下拉菜单中选择边缘检测类型，对图像进行边缘检测。
+          添加高斯噪点：拖动滑块调整噪点强度，点击“应用高斯噪点”按钮，为图像添加高斯噪声。
+          调整亮度：拖动滑块调整亮度值，勾选“生成亮度降低图像”可反向调整亮度，勾选“随机亮度生成”可添加随机亮度波动，点击“调整亮度”按钮应用亮度调整。
+          滤镜：在“滤镜”下拉菜单中选择滤镜类型，对图像应用不同色调的滤镜效果。
+          镜像翻转：勾选“水平翻转”、“垂直翻转”或“原点翻转”，点击“应用镜像翻转”按钮，对图像进行相应的翻转操作。
+          颜色替换：在“颜色替换”下拉菜单中选择颜色替换类型，点击“应用颜色替换”按钮，将图像中的白色替换为目标颜色。
+          恢复原图：点击“恢复原图”按钮，将处理后的图像恢复为原始图像。
+          导出：点击“导出”按钮，选择保存路径和文件格式，将处理后的图像保存到本地。
+          撤销与反撤销：点击“撤销”按钮，撤销上一步操作；点击“反撤销”按钮，恢复上一步撤销的操作。
+
+        主题切换:
+          点击相应的主题切换按钮，可在不同主题模式之间切换，包括白天模式、夜间模式、护眼模式、浅色模式、深色模式、深蓝色模式、灰色模式、暖黄色模式、绿豆沙模式、杏仁黄模式、秋叶褐模式、海天蓝模式、葛巾紫模式、青草绿模式等。
+        """
+        help_label = QLabel(help_content)
+        help_label.setWordWrap(True)  # 自动换行
+        help_layout.addWidget(help_label)
+
+        # 添加关闭按钮
+        close_btn = QPushButton('关闭')
+        close_btn.clicked.connect(help_dialog.accept)
+        help_layout.addWidget(close_btn)
+
+        help_dialog.setLayout(help_layout)
+        help_dialog.exec_()
+
+    def show_about(self):
+        # 创建关于对话框
+        about_dialog = QDialog(self)
+        about_dialog.setWindowTitle('关于本工具')
+        about_layout = QVBoxLayout()
+        about_content = """
+        简介:
+          本工具是一款集多种图像处理功能于一体的集成工具，旨在为用户提供便捷、高效的图片处理体验。用户可以通过本工具轻松实现图像的导入、显示、处理以及结果保存等操作。
+
+        功能特点:
+          丰富的图像处理功能：支持旋转、去噪、直方图均衡化、锐化、模糊、边缘检测、添加噪点、调整亮度等多种图像处理操作。
+          多样的主题模式：提供多种主题模式切换，满足不同用户的视觉需求，包括白天模式、夜间模式、护眼模式等。
+          便捷的图像导入与导出：支持从本地导入单张图片或批量导入文件夹中的图片，处理后的图像可保存为多种常见格式。
+          直观的用户界面：采用简洁明了的界面设计，操作方便，易于上手。
+
+        技术信息:
+          开发框架：基于PyQt5开发，利用其丰富的UI组件构建用户界面。
+          图像处理库：采用OpenCV进行图像处理操作，确保处理效率和效果。
+          适用平台：可在支持Python的多个操作系统上运行，包括Windows、Linux、MacOS等。
+        """
+        about_label = QLabel(about_content)
+        about_label.setWordWrap(True)  # 自动换行
+        about_layout.addWidget(about_label)
+
+        # 添加关闭按钮
+        close_btn = QPushButton('关闭')
+        close_btn.clicked.connect(about_dialog.accept)
+        about_layout.addWidget(close_btn)
+
+        about_dialog.setLayout(about_layout)
+        about_dialog.exec_()
 
 
 if __name__ == '__main__':
