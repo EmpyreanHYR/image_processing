@@ -3,6 +3,6 @@
 
 ## 贡献者
 
-<a href="https://github.com/angular/angular-ja/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=angular/angular-ja" />
+<a href="https://github.com/EmpyreanHYR/image_processing">
+  <img src="https://contrib.rocks/image?repo=EmpyreanHYR/image_processing" />
 </a>
