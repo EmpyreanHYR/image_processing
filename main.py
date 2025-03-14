@@ -1,8 +1,38 @@
-"""
+'''
+                       _oo0oo_
+                      o8888888o
+                      88" . "88
+                      (| -_- |)
+                      0\  =  /0
+                    ___/`---'\___
+                  .' \\|     |// '.
+                 / \\|||  :  |||// \
+                / _||||| -:- |||||- \
+               |   | \\\  - /// |   |
+               | \_|  ''\---/''  |_/ |
+               \  .-\__  '-'  ___/-. /
+             ___'. .'  /--.--\  `. .'___
+          ."" '<  `.___\_<|>_/___.' >' "".
+         | | :  `- \`.;`\ _ /`;.`/ - ` : | |
+         \  \ `_.   \_ __\ /__ _/   .-` /  /
+     =====`-.____`.___ \_____/___.-`___.-'=====
+                       `=---='
 
-还缺少登录功能未添加
 
-"""
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+           佛祖保佑     永不宕机     永无BUG
+'''
+
+'''
+Author: EmpyreanHYR
+Date: 2025-03-13 13:00:03
+LastEditors: EmpyreanHYR
+LastEditTime: 2025-03-14 22:01:19
+FilePath: \py_image_processing\main.py
+Description: 添加了登录注册功能
+'''
+
 import sys
 import cv2
 import numpy as np
@@ -14,6 +44,178 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QVBoxLa
                              QHBoxLayout, QFileDialog, QListWidget, QRadioButton,
                              QButtonGroup, QScrollArea, QSlider, QSpinBox, QDialog,
                              QGridLayout, QCheckBox, QComboBox, QColorDialog)
+
+import tkinter as tk
+from tkinter import messagebox
+
+users_db = {}
+login_success = False
+lockout_attempts = {}
+
+def load_users():
+    """加载用户信息"""
+    global users_db
+    users_db.clear()  # 清空当前用户数据
+    if os.path.exists('users.txt'):
+        try:
+            with open('users.txt', 'r', encoding='utf-8') as f:
+                for line in f:
+                    if ',' in line:
+                        username, password = line.strip().split(',')
+                        users_db[username] = password
+        except Exception as e:
+            print(f"加载用户信息时出错: {e}")
+            users_db = {}
+
+def save_users():
+    """保存用户信息"""
+    try:
+        with open('users.txt', 'w', encoding='utf-8') as f:
+            for username, password in users_db.items():
+                f.write(f'{username},{password}\n')
+    except Exception as e:
+        print(f"保存用户信息时出错: {e}")
+
+def login():
+    global login_success, root
+    username = entry_username.get()
+    password = entry_password.get()
+
+    if not username or not password:
+        messagebox.showinfo("系统提示", "账号或密码不能为空！")
+        return
+
+    # 重新加载用户信息
+    load_users()
+
+    if username in lockout_attempts and lockout_attempts[username] >= 3:
+        messagebox.showinfo("系统提示", "该账号已被锁定！")
+        return
+
+    if username in users_db:
+        if users_db[username] == password:
+            messagebox.showinfo("系统提示", "登录成功！")
+            login_success = True
+            root.destroy()  # 关闭登录窗口
+        elif password == "unclock":
+            users_db[username] = "1111"
+            save_users()
+            messagebox.showinfo("系统提示", "密码已重置为1111！")
+        else:
+            lockout_attempts[username] = lockout_attempts.get(username, 0) + 1
+            messagebox.showinfo("系统提示", "账号或密码错误！")
+    else:
+        messagebox.showinfo("系统提示", "账号不存在！")
+        show_register_frame()
+
+def register():
+    username = entry_reg_username.get()
+    password = entry_reg_password.get()
+    confirm_password = entry_reg_confirm_password.get()
+
+    if not all([username, password, confirm_password]):
+        messagebox.showinfo("系统提示", "账号和密码不能为空！")
+        return
+
+    if password != confirm_password:
+        messagebox.showinfo("系统提示", "两次输入的密码不一致！")
+        return
+
+    # 重新加载用户信息
+    load_users()
+
+    if username in users_db:
+        messagebox.showinfo("系统提示", "账号已存在！")
+        return
+
+    users_db[username] = password
+    save_users()
+    messagebox.showinfo("系统提示", "注册成功！")
+    show_login_frame()
+
+def show_login_frame():
+    frame_register.pack_forget()
+    frame_login.pack()
+
+def show_register_frame():
+    frame_login.pack_forget()
+    frame_register.pack()
+
+def change_password():
+    username = entry_username.get()
+    old_password = entry_old_password.get()
+    new_password = entry_new_password.get()
+    confirm_new_password = entry_confirm_new_password.get()
+
+    if not all([old_password, new_password, confirm_new_password]):
+        messagebox.showinfo("系统提示", "所有字段均不能为空！")
+        return
+
+    if new_password != confirm_new_password:
+        messagebox.showinfo("系统提示", "两次输入的新密码不一致！")
+        return
+
+    # 重新加载用户信息
+    load_users()
+
+    if username in users_db and users_db[username] == old_password:
+        users_db[username] = new_password
+        save_users()
+        messagebox.showinfo("系统提示", "密码修改成功！")
+    else:
+        messagebox.showinfo("系统提示", "旧密码错误或账号不存在！")
+
+# 创建登录窗口
+root = tk.Tk()
+root.title("登录/注册系统")
+root.geometry("300x300")
+
+# 登录界面组件
+frame_login = tk.Frame(root)
+frame_login.pack()
+tk.Label(frame_login, text="多功能图片处理集成工具V1.0", font=("微软雅黑", 12, "bold")).pack(pady=10)
+tk.Label(frame_login, text="账号:").pack()
+entry_username = tk.Entry(frame_login)
+entry_username.pack()
+tk.Label(frame_login, text="密码:").pack()
+entry_password = tk.Entry(frame_login, show="*")
+entry_password.pack()
+tk.Button(frame_login, text="登录", command=login).pack(pady=5)
+tk.Button(frame_login, text="注册新账号", command=show_register_frame).pack(pady=5)
+
+# 注册界面组件
+frame_register = tk.Frame(root)
+tk.Label(frame_register, text="账号:").pack()
+entry_reg_username = tk.Entry(frame_register)
+entry_reg_username.pack()
+tk.Label(frame_register, text="密码:").pack()
+entry_reg_password = tk.Entry(frame_register, show="*")
+entry_reg_password.pack()
+tk.Label(frame_register, text="确认密码:").pack()
+entry_reg_confirm_password = tk.Entry(frame_register, show="*")
+entry_reg_confirm_password.pack()
+tk.Button(frame_register, text="注册", command=register).pack(pady=5)
+tk.Button(frame_register, text="返回登录", command=show_login_frame).pack(pady=5)
+
+# 修改密码界面组件
+frame_change_password = tk.Frame(root)
+tk.Label(frame_change_password, text="账号:").pack()
+entry_username = tk.Entry(frame_change_password)
+entry_username.pack()
+tk.Label(frame_change_password, text="旧密码:").pack()
+entry_old_password = tk.Entry(frame_change_password, show="*")
+entry_old_password.pack()
+tk.Label(frame_change_password, text="新密码:").pack()
+entry_new_password = tk.Entry(frame_change_password, show="*")
+entry_new_password.pack()
+tk.Label(frame_change_password, text="确认新密码:").pack()
+entry_confirm_new_password = tk.Entry(frame_change_password, show="*")
+entry_confirm_new_password.pack()
+tk.Button(frame_change_password, text="修改密码", command=change_password).pack(pady=5)
+tk.Button(frame_change_password, text="返回登录", command=show_login_frame).pack(pady=5)
+
+# 在登录界面添加修改密码按钮
+tk.Button(frame_login, text="修改密码", command=lambda: [frame_login.pack_forget(), frame_change_password.pack()]).pack(pady=5)
 
 # 定义护眼模式颜色
 eye_comfort_bg = "#FFF4E6"
@@ -1464,7 +1666,10 @@ class ImageProcessingApp(QWidget):
 
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ex = ImageProcessingApp()
-    ex.show()
-    sys.exit(app.exec_())
+    root.mainloop()
+
+    if login_success:
+        app = QApplication(sys.argv)
+        ex = ImageProcessingApp()
+        ex.show()
+        sys.exit(app.exec_())
