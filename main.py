@@ -28,9 +28,9 @@
 Author: EmpyreanHYR
 Date: 2025-03-13 13:00:03
 LastEditors: EmpyreanHYR
-LastEditTime: 2025-03-14 22:01:19
+LastEditTime: 2025-03-14 22:32:11
 FilePath: \py_image_processing\main.py
-Description: 添加了登录注册功能
+Description: 修复了登录BUG
 '''
 
 import sys
@@ -63,9 +63,13 @@ def load_users():
                     if ',' in line:
                         username, password = line.strip().split(',')
                         users_db[username] = password
+            print(f"已加载用户信息: {users_db}")  # 打印加载的用户信息
         except Exception as e:
             print(f"加载用户信息时出错: {e}")
             users_db = {}
+    else:
+        print("users.txt 文件不存在")
+        users_db = {}
 
 def save_users():
     """保存用户信息"""
@@ -80,6 +84,8 @@ def login():
     global login_success, root
     username = entry_username.get()
     password = entry_password.get()
+
+    print(f"尝试登录: 用户名={username}, 当前用户数据={users_db}")  # 打印登录信息
 
     if not username or not password:
         messagebox.showinfo("系统提示", "账号或密码不能为空！")
@@ -104,6 +110,7 @@ def login():
         else:
             lockout_attempts[username] = lockout_attempts.get(username, 0) + 1
             messagebox.showinfo("系统提示", "账号或密码错误！")
+            print(f"密码错误: 输入={password}, 正确={users_db[username]}")  # 打印密码错误信息
     else:
         messagebox.showinfo("系统提示", "账号不存在！")
         show_register_frame()
@@ -142,12 +149,12 @@ def show_register_frame():
     frame_register.pack()
 
 def change_password():
-    username = entry_username.get()
+    username = entry_change_username.get()
     old_password = entry_old_password.get()
     new_password = entry_new_password.get()
     confirm_new_password = entry_confirm_new_password.get()
 
-    if not all([old_password, new_password, confirm_new_password]):
+    if not all([username, old_password, new_password, confirm_new_password]):
         messagebox.showinfo("系统提示", "所有字段均不能为空！")
         return
 
@@ -162,10 +169,14 @@ def change_password():
         users_db[username] = new_password
         save_users()
         messagebox.showinfo("系统提示", "密码修改成功！")
+        show_login_frame()
     else:
         messagebox.showinfo("系统提示", "旧密码错误或账号不存在！")
 
 # 创建登录窗口
+# 先加载用户信息
+load_users()
+
 root = tk.Tk()
 root.title("登录/注册系统")
 root.geometry("300x300")
@@ -200,8 +211,8 @@ tk.Button(frame_register, text="返回登录", command=show_login_frame).pack(pa
 # 修改密码界面组件
 frame_change_password = tk.Frame(root)
 tk.Label(frame_change_password, text="账号:").pack()
-entry_username = tk.Entry(frame_change_password)
-entry_username.pack()
+entry_change_username = tk.Entry(frame_change_password)
+entry_change_username.pack()
 tk.Label(frame_change_password, text="旧密码:").pack()
 entry_old_password = tk.Entry(frame_change_password, show="*")
 entry_old_password.pack()
