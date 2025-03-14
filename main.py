@@ -1,15 +1,14 @@
 """
 
-诚挚感谢各位一起修改代码！
-感受一下推送
+还缺少登录功能未添加
 
 """
 import sys
 import cv2
 import numpy as np
 import os
-from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap, QImage, QPainter, QPen, QPainterPath, QIcon
+from PyQt5.QtCore import Qt, QPoint
 from PIL import Image, ImageEnhance
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QVBoxLayout,
                              QHBoxLayout, QFileDialog, QListWidget, QRadioButton,
@@ -216,6 +215,7 @@ qcl_STYLE = """
         background-color: #E3EDCD;
     }
 """
+
 class RotationDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -238,6 +238,86 @@ class RotationDialog(QDialog):
         self.setLayout(layout)
 
 
+class MagnifierWindow(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setFixedSize(200, 200)
+        self.zoom_factor = 2.0  # 放大倍数
+        self.radius = 100  # 放大镜半径
+        self.source_image = None
+        self.source_pos = None
+        self.show()
+
+    def set_source(self, image, pos):
+        self.source_image = image
+        self.source_pos = pos
+        self.update()
+
+    def paintEvent(self, event):
+        if self.source_image is None or self.source_pos is None:
+            return
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # 绘制放大镜边框
+        painter.setPen(QPen(Qt.black, 2))
+        painter.drawEllipse(0, 0, self.width() - 1, self.height() - 1)
+
+        # 计算源图像中的区域
+        x = self.source_pos.x() - self.radius // self.zoom_factor
+        y = self.source_pos.y() - self.radius // self.zoom_factor
+        width = (self.radius * 2) // self.zoom_factor
+        height = (self.radius * 2) // self.zoom_factor
+
+        # 确保坐标在图像范围内
+        x = max(0, min(x, self.source_image.width() - width))
+        y = max(0, min(y, self.source_image.height() - height))
+
+        # 截取源图像区域并放大
+        source_region = self.source_image.copy(x, y, width, height)
+        scaled_region = source_region.scaled(self.width(), self.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        
+        # 创建圆形裁剪区域
+        path = QPainterPath()
+        path.addEllipse(0, 0, self.width() - 1, self.height() - 1)
+        painter.setClipPath(path)
+        
+        # 绘制放大后的图像
+        painter.drawImage(0, 0, scaled_region)
+
+class ImageZoomDialog(QDialog):
+    def __init__(self, image, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('图像放大查看')
+        self.setModal(True)
+        
+        # 创建布局
+        layout = QVBoxLayout()
+        
+        # 创建图像标签
+        self.image_label = QLabel()
+        self.image_label.setAlignment(Qt.AlignCenter)
+        
+        # 设置图像
+        pixmap = QPixmap.fromImage(image)
+        # 计算缩放比例，使图像适应窗口
+        scaled_pixmap = pixmap.scaled(800, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.image_label.setPixmap(scaled_pixmap)
+        
+        # 添加图像标签到布局
+        layout.addWidget(self.image_label)
+        
+        # 添加关闭按钮
+        close_btn = QPushButton('关闭')
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn)
+        
+        self.setLayout(layout)
+        self.resize(800, 600)  # 设置窗口大小
+
 class ImageProcessingApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -247,6 +327,12 @@ class ImageProcessingApp(QWidget):
         self.processed_image = None
         self.history = []
         self.redo_stack = []
+        self.magnifier = None  # 放大镜窗口
+        self.current_label = None  # 当前操作的标签
+        
+        # 设置应用程序图标
+        icon = QIcon("logo.png")
+        self.setWindowIcon(icon)
 
     def initUI(self):
         self.setWindowTitle('多功能图片处理集成工具V1.0')
@@ -512,6 +598,11 @@ class ImageProcessingApp(QWidget):
         self.reset_btn.clicked.connect(self.reset_image)
         right_layout.addWidget(self.reset_btn)
 
+        # 添加放大查看按钮
+        self.zoom_btn = QPushButton('放大查看')
+        self.zoom_btn.clicked.connect(self.show_zoom_dialog)
+        right_layout.addWidget(self.zoom_btn)
+
         self.export_btn = QPushButton('导出')
         self.export_btn.clicked.connect(self.export_image)
         right_layout.addWidget(self.export_btn)
@@ -542,6 +633,19 @@ class ImageProcessingApp(QWidget):
         main_layout.addWidget(scroll_area, 1)
 
         self.setLayout(main_layout)
+
+        # 修改图像标签的鼠标追踪
+        self.original_label.setMouseTracking(True)
+        self.processed_label.setMouseTracking(True)
+        
+        # 添加鼠标事件处理
+        self.original_label.mousePressEvent = self.handle_image_mouse_press
+        self.original_label.mouseMoveEvent = self.handle_image_mouse_move
+        self.original_label.mouseReleaseEvent = self.handle_image_mouse_release
+        
+        self.processed_label.mousePressEvent = self.handle_image_mouse_press
+        self.processed_label.mouseMoveEvent = self.handle_image_mouse_move
+        self.processed_label.mouseReleaseEvent = self.handle_image_mouse_release
 
     def load_image(self):
         file_path, _ = QFileDialog.getOpenFileName(self, '选择图片', '',
@@ -1206,19 +1310,19 @@ class ImageProcessingApp(QWidget):
         about_dialog.setWindowTitle('关于本工具')
         about_layout = QVBoxLayout()
         about_content = """
-        简介:
-          本工具是一款集多种图像处理功能于一体的集成工具，旨在为用户提供便捷、高效的图片处理体验。用户可以通过本工具轻松实现图像的导入、显示、处理以及结果保存等操作。
+简介:
+    本工具是一款集多种图像处理功能于一体的集成工具，旨在为用户提供便捷、高效的图片处理体验。用户可以通过本工具轻松实现图像的导入、显示、处理以及结果保存等操作。
 
-        功能特点:
-          丰富的图像处理功能：支持旋转、去噪、直方图均衡化、锐化、模糊、边缘检测、添加噪点、调整亮度等多种图像处理操作。
-          多样的主题模式：提供多种主题模式切换，满足不同用户的视觉需求，包括白天模式、夜间模式、护眼模式等。
-          便捷的图像导入与导出：支持从本地导入单张图片或批量导入文件夹中的图片，处理后的图像可保存为多种常见格式。
-          直观的用户界面：采用简洁明了的界面设计，操作方便，易于上手。
+功能特点:
+    丰富的图像处理功能：支持旋转、去噪、直方图均衡化、锐化、模糊、边缘检测、添加噪点、调整亮度等多种图像处理操作。
+    多样的主题模式：提供多种主题模式切换，满足不同用户的视觉需求，包括白天模式、夜间模式、护眼模式等。
+    便捷的图像导入与导出：支持从本地导入单张图片或批量导入文件夹中的图片，处理后的图像可保存为多种常见格式。
+    直观的用户界面：采用简洁明了的界面设计，操作方便，易于上手。
 
-        技术信息:
-          开发框架：基于PyQt5开发，利用其丰富的UI组件构建用户界面。
-          图像处理库：采用OpenCV进行图像处理操作，确保处理效率和效果。
-          适用平台：可在支持Python的多个操作系统上运行，包括Windows、Linux、MacOS等。
+技术信息:
+    开发框架：基于PyQt5开发，利用其丰富的UI组件构建用户界面。
+    图像处理库：采用OpenCV进行图像处理操作，确保处理效率和效果。
+    适用平台：可在支持Python的多个操作系统上运行，包括Windows、Linux、MacOS等。
         """
         about_label = QLabel(about_content)
         about_label.setWordWrap(True)  # 自动换行
@@ -1330,6 +1434,33 @@ class ImageProcessingApp(QWidget):
         """
         self.setStyleSheet(custom_style)
         self.current_mode = "custom"
+
+    def handle_image_mouse_press(self, event):
+        pass  # 不再需要处理鼠标点击事件
+
+    def handle_image_mouse_move(self, event):
+        pass  # 不再需要处理鼠标移动事件
+
+    def handle_image_mouse_release(self, event):
+        pass  # 不再需要处理鼠标释放事件
+
+    def show_zoom_dialog(self):
+        """显示放大查看对话框"""
+        # 获取当前显示的图像
+        if self.processed_image is not None:
+            # 转换OpenCV图像为QImage
+            height, width, channel = self.processed_image.shape
+            bytes_per_line = 3 * width
+            q_img = QImage(self.processed_image.data, width, height, bytes_per_line, QImage.Format_RGB888).rgbSwapped()
+            
+            # 创建并显示放大窗口
+            dialog = ImageZoomDialog(q_img, self)
+            dialog.exec_()
+
+    def closeEvent(self, event):
+        if self.magnifier is not None:
+            self.magnifier.close()
+        super().closeEvent(event)
 
 
 if __name__ == '__main__':
