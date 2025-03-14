@@ -1,4 +1,13 @@
 '''
+Author: EmpyreanHYR
+Date: 2025-03-13 13:00:03
+LastEditors: EmpyreanHYR 133381452+EmpyreanHYR@users.noreply.github.com
+LastEditTime: 2025-03-15 00:13:03
+FilePath: \py_image_processing\main.py
+Description: 修复了冷色调滤镜问题，增设了暖色调，解决修改密码后的登录界面显示异常问题
+'''
+
+'''
                        _oo0oo_
                       o8888888o
                       88" . "88
@@ -24,14 +33,7 @@
            佛祖保佑     永不宕机     永无BUG
 '''
 
-'''
-Author: EmpyreanHYR
-Date: 2025-03-13 13:00:03
-LastEditors: EmpyreanHYR
-LastEditTime: 2025-03-14 22:32:11
-FilePath: \py_image_processing\main.py
-Description: 修复了登录BUG
-'''
+
 
 import sys
 import cv2
@@ -142,6 +144,7 @@ def register():
 
 def show_login_frame():
     frame_register.pack_forget()
+    frame_change_password.pack_forget()  # 隐藏重置密码界面
     frame_login.pack()
 
 def show_register_frame():
@@ -739,6 +742,7 @@ class ImageProcessingApp(QWidget):
         self.filter_combobox.addItem("黑白色调")
         self.filter_combobox.addItem("复古色调")
         self.filter_combobox.addItem("冷色调")
+        self.filter_combobox.addItem("暖色调")
         self.filter_combobox.currentIndexChanged.connect(self.apply_filter)
 
         # 镜像翻转选项
@@ -1352,10 +1356,25 @@ class ImageProcessingApp(QWidget):
             filtered_image = cv2.transform(filtered_image, kernel)
             filtered_image = np.clip(filtered_image, 0, 255)
         elif filter_type == "冷色调":
+            # 确保图像是 float 类型
+            filtered_image = filtered_image.astype(np.float32)
+
             # 应用冷色调滤镜（增强蓝色通道）
-            blue_tint = np.array([1.2, 1.0, 1.0])  # 增强蓝色通道
-            filtered_image = filtered_image * blue_tint
-            filtered_image = np.clip(filtered_image, 0, 255)
+            blue_tint = np.array([1.2, 1.0, 1.0])  # 增强蓝色通道 (B, G, R)
+            filtered_image *= blue_tint
+
+            # 确保像素值在 [0, 255] 之间
+            filtered_image = np.clip(filtered_image, 0, 255).astype(np.uint8)
+        elif filter_type == "暖色调":
+            # 确保图像是 float 类型
+            filtered_image = filtered_image.astype(np.float32)
+
+            # 应用暖色调滤镜（增强红色通道）
+            red_tint = np.array([1.0, 1.0, 1.2])  # 增强红色通道 (B, G, R)
+            filtered_image *= red_tint
+
+            # 确保像素值在 [0, 255] 之间
+            filtered_image = np.clip(filtered_image, 0, 255).astype(np.uint8)
 
         self.processed_image = filtered_image.astype(np.uint8)
         self.save_and_display(filtered_image)
